@@ -1,0 +1,9 @@
+.next
+node_modules
+.env
+.env.*
+out
+dist
+*.log
+!.gitkeep
+

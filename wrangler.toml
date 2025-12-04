@@ -1,0 +1,14 @@
+name = "roaster-worker"
+main = "worker/index.ts"
+compatibility_date = "2024-11-06"
+workers_dev = true
+
+[[d1_databases]]
+binding = "roaster_app"
+database_name = "roaster_app"
+database_id = "98cf0341-b938-4690-944c-de72afd6d3db"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:3000,https://your-pages-domain.pages.dev"
+
+
