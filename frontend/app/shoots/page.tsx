@@ -132,7 +132,7 @@ export default function ShootsPage() {
   return (
     <TableLayout
       title="Shoots"
-      description="Track shoots, invoices, payments, and balances."
+      description="Track shoots, invoices, payments, and balances. Deployed via Pages."
       actions={
         <div className="flex gap-2">
           <button

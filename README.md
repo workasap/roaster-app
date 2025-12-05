@@ -73,8 +73,41 @@ Cloudflare-native production workflow for Cine Flakes Entertainment. The origina
 1. `wrangler d1 create roaster_app` → update `wrangler.toml` with the generated `database_id`.
 2. `npm run migrate` (local) or `wrangler d1 execute ... --remote` (production) to create tables + seed data.
 3. `wrangler deploy` to publish the Worker.
-4. Deploy `frontend/` to Cloudflare Pages (build command `npm run build`, output `.next`). Set `NEXT_PUBLIC_API_BASE_URL` to the Worker URL in Pages environment variables.
+4. Deploy `frontend/` to Cloudflare Pages (root `frontend/`). Use the Next.js preset with build command `npx @cloudflare/next-on-pages@latest`, output `.vercel/output/static`, functions `.vercel/output/functions`. Set `NEXT_PUBLIC_API_BASE_URL` to the Worker URL in Pages environment variables.
 
 Detailed steps, including Cloudflare Pages + Workers + D1 instructions, are available in `DEPLOYMENT.md`.
+
+## Continuous Deployment (Cloudflare Pages + GitHub)
+
+The site is configured for automatic deploys on every push to `main` using Cloudflare Pages (free tier).
+
+1. Cloudflare Pages → Create project → Connect GitHub → select `workasap/roaster-app`.
+2. Build settings:
+   - Root directory: `frontend`
+   - Framework preset: `Next.js`
+   - Build command: `npx @cloudflare/next-on-pages@latest`
+   - Output directory: `.vercel/output/static`
+   - Functions directory: `.vercel/output/functions`
+   - Environment variables: `NEXT_PUBLIC_API_BASE_URL=https://<your-worker>.workers.dev`
+3. CORS for Worker API: update `ALLOWED_ORIGINS` in `wrangler.toml` to include your Pages domain (e.g. `https://<project>.pages.dev` and any custom domain).
+4. Caching & headers: Pages reads `frontend/_headers` and applies long‑term caching for Next static assets while keeping HTML non‑cached.
+5. Optional GitHub Actions trigger: add secret `CLOUDFLARE_PAGES_DEPLOY_HOOK_URL` and pushes to `main` will also trigger the Pages deploy hook via `.github/workflows/cloudflare-pages-deploy.yml`.
+
+### Verification
+
+1. Make a small UI change in `frontend/` and push to `main`.
+2. In Cloudflare Pages → Deployments, confirm a new build started and finished.
+3. Open the production URL to verify the change.
+
+### Monitoring & Notifications
+
+- Enable build failure email notifications in the Cloudflare Pages project settings (free).
+- GitHub Actions job fails if the deploy hook secret is missing, surfacing errors in the repo’s Actions tab.
+
+### Custom Domains (Free SSL)
+
+1. Add your domain in Cloudflare Pages → Custom domains.
+2. Verify DNS and enable Cloudflare’s Universal SSL (free).
+3. Add the custom origin to `ALLOWED_ORIGINS` in `wrangler.toml`.
 
 
