@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.env*
+dist/
+out/
+*.log
+frontend/.next/
+frontend/dist/
+worker/node_modules/
+worker/dist/
