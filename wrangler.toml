@@ -1,14 +1,15 @@
 name = "roaster-worker"
 main = "worker/index.ts"
 compatibility_date = "2024-11-06"
+compatibility_flags = []
+
 workers_dev = true
 
+# D1 Database
 [[d1_databases]]
-binding = "roaster_app"
+binding = "ROASTER_APP"       # environment variable your Worker uses
 database_name = "roaster_app"
 database_id = "98cf0341-b938-4690-944c-de72afd6d3db"
 
 [vars]
 ALLOWED_ORIGINS = "http://localhost:3000,https://your-pages-domain.pages.dev"
-
-
