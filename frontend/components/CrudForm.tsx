@@ -40,15 +40,36 @@ export default function CrudForm<T extends object>({
     return start;
   });
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (name: string, value: string) => {
     setValues((prev) => ({ ...prev, [name]: value }));
+    const field = fields.find((f) => f.name === name);
+    if (!field) return;
+    let msg = "";
+    if (field.required && !String(value).trim()) msg = "Required";
+    if (!msg && field.type === "number" && value) {
+      const n = Number(value);
+      if (Number.isNaN(n)) msg = "Must be a number";
+    }
+    if (!msg && field.type === "date" && value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) msg = "Invalid date";
+    }
+    setErrors((prev) => ({ ...prev, [name]: msg }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     try {
+      const nextErrors: Record<string, string> = {};
+      fields.forEach((f) => {
+        const v = values[f.name] ?? "";
+        if (f.required && !String(v).trim()) nextErrors[f.name] = "Required";
+      });
+      setErrors(nextErrors);
+      if (Object.values(nextErrors).some((m) => m)) return;
       const payload = fields.reduce<Partial<T>>((acc, field) => {
         const raw = field.readOnly && field.computeValue
           ? field.computeValue(values)
@@ -80,7 +101,9 @@ export default function CrudForm<T extends object>({
             onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
               handleChange(field.name, e.target.value),
             className:
-              "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+              "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200",
+            "aria-invalid": Boolean(errors[field.name]),
+            "aria-describedby": errors[field.name] ? `${field.name}-error` : undefined
           };
 
           return (
@@ -125,6 +148,11 @@ export default function CrudForm<T extends object>({
                     <option key={opt} value={opt} />
                   ))}
                 </datalist>
+              )}
+              {errors[field.name] && (
+                <p id={`${field.name}-error`} className="mt-1 text-xs text-red-600" aria-live="polite">
+                  {errors[field.name]}
+                </p>
               )}
             </label>
           );

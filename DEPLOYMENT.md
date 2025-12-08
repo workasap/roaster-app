@@ -60,6 +60,15 @@
 
 4. Copy the deployed Worker URL (e.g. `https://roaster-worker.<account>.workers.dev`) for the frontend environment variable.
 
+5. CI/CD with rollback
+
+   - Create GitHub Secrets:
+     - `CLOUDFLARE_API_TOKEN` with permissions for Workers and D1
+     - `CLOUDFLARE_ACCOUNT_ID`
+     - `PROD_WORKER_URL` and `PROD_PAGES_URL` for health checks and backups
+   - On push to `main`, `.github/workflows/worker-deploy.yml` runs tests and deploys the Worker.
+   - Roll back by reverting to a previous commit and pushing to `main`.
+
 ## 3. Cloudflare Pages (Next.js Frontend)
 
 1. Configure environment variables in Pages → Settings → Environment Variables:
@@ -79,6 +88,11 @@
    (Pages automatically runs `npm install` before the build.)
 
 3. Deploy either by connecting the Git repo or via `wrangler pages deploy` after running `npm run build`.
+
+4. CI/CD
+
+   - `.github/workflows/cloudflare-pages-deploy.yml` triggers the Pages Deploy Hook on each push to `main`.
+   - Set `CLOUDFLARE_PAGES_DEPLOY_HOOK_URL` secret in GitHub.
 
 ## 4. Connect Frontend & Backend
 
@@ -102,4 +116,30 @@
 - [ ] Smart roaster grid highlights BOOKED/VACATION/CONFLICT and exports CSV/Excel.
 - [ ] Toast notifications display success/error feedback.
 - [ ] Mobile layout verified in responsive mode.
+
+## 6. Network and Security
+
+- TLS is provided by Cloudflare; enable HSTS (already configured in `frontend/_headers`).
+- Restrict CORS to your Pages domains by updating `ALLOWED_ORIGINS` in `wrangler.toml`.
+- Set a custom domain for Pages and update DNS in Cloudflare Dashboard.
+- Use Cloudflare Firewall to restrict API paths if needed.
+
+## 7. Backups and Monitoring
+
+- Weekly backups: `.github/workflows/backup.yml` exports core API JSON and stores them as workflow artifacts.
+- Health checks: `.github/workflows/health-check.yml` pings `PROD_WORKER_URL/api/health` and the Pages homepage.
+- Metrics endpoint: `GET /api/metrics` shows basic counts for API usage.
+
+## 8. Smoke Tests
+
+- After deploy, open the Pages URL and verify:
+  - Login works and session is issued
+  - CRUD flows on Shoots/Expenses/Payments/Vacations/Master Data
+  - Summary pages render without errors
+  - CSV export buttons work
+
+## 9. Rollback
+
+- Revert to a previous commit on `main` and push; Actions redeploy the older version.
+- For Pages, select a previous deployment in Cloudflare Pages and promote it.
 

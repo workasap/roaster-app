@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -35,7 +36,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Sidebar links={NAV_LINKS} />
             <div className="flex-1">
               <TopNav links={NAV_LINKS} />
-              {children}
+              <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:rounded-md focus:bg-white focus:px-2 focus:py-1">Skip to content</a>
+              <main id="main">
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
+              </main>
             </div>
           </div>
         </Providers>
@@ -43,4 +49,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-

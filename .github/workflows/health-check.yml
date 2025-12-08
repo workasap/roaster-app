@@ -1,0 +1,23 @@
+name: Production Health Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Worker Health
+        run: |
+          set -e
+          curl -fsSL "$PROD_WORKER_URL/api/health" | jq .
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Check Pages Availability
+        run: |
+          set -e
+          curl -fsSI "$PROD_PAGES_URL" | head -n 20
+        env:
+          PROD_PAGES_URL: ${{ secrets.PROD_PAGES_URL }}

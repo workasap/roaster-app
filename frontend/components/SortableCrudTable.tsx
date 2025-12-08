@@ -87,6 +87,8 @@ export default function SortableCrudTable<T extends object>({
                   "cursor-pointer select-none px-3 py-2 text-left font-semibold text-slate-600",
                   sortKey === String(column.key) ? "text-brand-700" : ""
                 )}
+                scope="col"
+                aria-sort={sortKey === String(column.key) ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
               >
                 {column.label}
                 {sortKey === String(column.key) && (

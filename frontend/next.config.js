@@ -5,6 +5,11 @@ const nextConfig = {
       allowedOrigins: ["*"]
     }
   },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production"
+  },
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   eslint: {
     ignoreDuringBuilds: false
   }

@@ -25,6 +25,30 @@ import type {
 } from "./types";
   
 const router = Router();
+const rlStore: Map<string, { count: number; reset: number }> = new Map();
+const RL_WINDOW_MS = 60_000;
+const RL_MAX = 200;
+const counters: Map<string, number> = new Map();
+
+function getClientKey(request: Request): string {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ua = request.headers.get("User-Agent") || "";
+  return `${ip}:${ua.slice(0, 40)}`;
+}
+
+function checkRateLimit(request: Request): boolean {
+  const key = getClientKey(request);
+  const now = Date.now();
+  const cur = rlStore.get(key);
+  if (!cur || cur.reset < now) {
+    rlStore.set(key, { count: 1, reset: now + RL_WINDOW_MS });
+    return true;
+  }
+  if (cur.count >= RL_MAX) return false;
+  cur.count += 1;
+  rlStore.set(key, cur);
+  return true;
+}
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 200;
@@ -69,6 +93,11 @@ function withCors(request: Request, env: Env, response: Response): Response {
     "Access-Control-Allow-Headers",
     "Content-Type,Authorization,Origin,Accept"
   );
+
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("Referrer-Policy", "no-referrer-when-downgrade");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   return new Response(response.body, { status: response.status, headers });
 }
@@ -232,9 +261,78 @@ router.get("/", () => {
   });
 });
 
+router.get("/openapi.json", () => {
+  const doc = {
+    openapi: "3.0.0",
+    info: {
+      title: "Roaster API",
+      version: "1.0.0"
+    },
+    servers: [{ url: "/" }],
+    paths: {
+      "/api/health": { get: { responses: { "200": { description: "OK" } } } },
+      "/api/shoots": {
+        get: { responses: { "200": { description: "List shoots" } } },
+        post: { responses: { "200": { description: "Create shoot" } } }
+      },
+      "/api/shoots/{id}": {
+        patch: { responses: { "200": { description: "Update shoot" } } },
+        delete: { responses: { "200": { description: "Delete shoot" } } }
+      },
+      "/api/expenses": {
+        get: { responses: { "200": { description: "List expenses" } } },
+        post: { responses: { "200": { description: "Create expense" } } }
+      },
+      "/api/expenses/{id}": {
+        patch: { responses: { "200": { description: "Update expense" } } },
+        delete: { responses: { "200": { description: "Delete expense" } } }
+      },
+      "/api/payments": {
+        get: { responses: { "200": { description: "List payments" } } },
+        post: { responses: { "200": { description: "Create payment" } } }
+      },
+      "/api/payments/{id}": {
+        patch: { responses: { "200": { description: "Update payment" } } },
+        delete: { responses: { "200": { description: "Delete payment" } } }
+      },
+      "/api/vacations": {
+        get: { responses: { "200": { description: "List vacations" } } },
+        post: { responses: { "200": { description: "Create vacation" } } }
+      },
+      "/api/vacations/{id}": {
+        patch: { responses: { "200": { description: "Update vacation" } } },
+        delete: { responses: { "200": { description: "Delete vacation" } } }
+      },
+      "/api/master-data": {
+        get: { responses: { "200": { description: "List master data" } } },
+        post: { responses: { "200": { description: "Create master data" } } }
+      },
+      "/api/master-data/{id}": {
+        patch: { responses: { "200": { description: "Update master data" } } },
+        delete: { responses: { "200": { description: "Delete master data" } } }
+      },
+      "/api/artists": { get: { responses: { "200": { description: "List artists" } } } },
+      "/api/availability": { get: { responses: { "200": { description: "Availability" } } } },
+      "/api/yearly-summary": { get: { responses: { "200": { description: "Yearly summary" } } } },
+      "/api/roaster-entries": { get: { responses: { "200": { description: "Roaster entries" } } } },
+      "/api/summary": { get: { responses: { "200": { description: "Monthly summary" } } } }
+    }
+  };
+  return new Response(JSON.stringify(doc), {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  });
+});
+
 router.get("/api/health", async (_request, env: Env) => {
   const ok = await queryOne<{ ok: number }>(env, "SELECT 1 as ok", []);
   return json({ ok: ok?.ok === 1 });
+});
+
+router.get("/api/metrics", () => {
+  const all: Record<string, number> = {};
+  for (const [k, v] of counters.entries()) all[k] = v;
+  return json({ uptime_ms: performance.now(), counts: all });
 });
 
 router.get("/api/shoots", async (request, env: Env) => {
@@ -1670,21 +1768,52 @@ router.all("*", () =>
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext) {
+    const start = Date.now();
+    const key = getClientKey(request);
+    const method = request.method;
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const needsLimit = method !== "GET" && !path.startsWith("/api/health");
+    if (needsLimit && !checkRateLimit(request)) {
+      const res = json({ success: false, error: "Too many requests" }, 429);
+      console.log("rate_limited", { key, method, path });
+      return withCors(request, env, res);
+    }
+    const isCacheable = request.method === "GET";
+    const cache = caches.default;
+    if (isCacheable) {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
     try {
       const res = await router.handle(request, env, _ctx);
-      if (res instanceof Response) {
-        return withCors(request, env, res);
+      const final = res instanceof Response
+        ? withCors(request, env, res)
+        : withCors(request, env, json({ success: false, error: "Not found" }, 404));
+
+      if (isCacheable && final.ok) {
+        const headers = new Headers(final.headers);
+        if (!headers.has("Cache-Control")) {
+          headers.set("Cache-Control", "public, max-age=60");
+        }
+        const toCache = new Response(final.body, { status: final.status, headers });
+        _ctx.waitUntil(cache.put(request, toCache.clone()));
+        console.log("req", { key, method, path, ms: Date.now() - start, status: final.status });
+        counters.set(path, (counters.get(path) ?? 0) + 1);
+        return toCache;
       }
-      return withCors(request, env, json({ success: false, error: "Not found" }, 404));
+      console.log("req", { key, method, path, ms: Date.now() - start, status: final.status });
+      counters.set(path, (counters.get(path) ?? 0) + 1);
+      return final;
     } catch (error) {
+      console.log("error", { key, method, path, ms: Date.now() - start, error: error instanceof Error ? error.message : String(error) });
       return withCors(
         request,
         env,
         json(
           {
             success: false,
-            error:
-              error instanceof Error ? error.message : "Unexpected error"
+            error: error instanceof Error ? error.message : "Unexpected error"
           },
           500
         )

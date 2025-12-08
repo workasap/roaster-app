@@ -3,13 +3,14 @@ import type { D1Database, D1Result } from "@cloudflare/workers-types";
 export interface Env {
   DB?: D1Database;
   roaster_app?: D1Database;
+  ROASTER_APP?: D1Database;
   ALLOWED_ORIGINS?: string;
 }
 
 function getDb(env: Env): D1Database {
-  const db = env.DB ?? env.roaster_app;
+  const db = env.DB ?? env.roaster_app ?? env.ROASTER_APP;
   if (!db) {
-    throw new Error("D1 binding not configured. Expected DB or roaster_app.");
+    throw new Error("D1 binding not configured. Expected DB, roaster_app or ROASTER_APP.");
   }
   return db;
 }

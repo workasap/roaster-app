@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "migrate": "wrangler d1 execute roaster_app --file migrations/001_create_tables.sql && wrangler d1 execute roaster_app --file migrations/002_seed_shoots.sql && wrangler d1 execute roaster_app --file migrations/003_add_indexes.sql && wrangler d1 execute roaster_app --file migrations/004_add_expense_remark.sql",
+    "migrate": "wrangler d1 execute roaster_app --file migrations/001_create_tables.sql && wrangler d1 execute roaster_app --file migrations/002_seed_shoots.sql && wrangler d1 execute roaster_app --file migrations/003_add_indexes.sql && wrangler d1 execute roaster_app --file migrations/004_add_expense_remark.sql && wrangler d1 execute roaster_app --file migrations/005_add_shoot_indexes.sql",
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {

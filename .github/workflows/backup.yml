@@ -1,0 +1,46 @@
+name: Weekly Backup Export
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export Shoots
+        run: |
+          curl -fsSL "$PROD_WORKER_URL/api/shoots?pageSize=200" -o shoots.json
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Export Expenses
+        run: |
+          curl -fsSL "$PROD_WORKER_URL/api/expenses?pageSize=200" -o expenses.json
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Export Payments
+        run: |
+          curl -fsSL "$PROD_WORKER_URL/api/payments?pageSize=200" -o payments.json
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Export Vacations
+        run: |
+          curl -fsSL "$PROD_WORKER_URL/api/vacations?pageSize=200" -o vacations.json
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Export Master Data
+        run: |
+          curl -fsSL "$PROD_WORKER_URL/api/master-data?pageSize=200" -o master-data.json
+        env:
+          PROD_WORKER_URL: ${{ secrets.PROD_WORKER_URL }}
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roaster-backup
+          path: |
+            shoots.json
+            expenses.json
+            payments.json
+            vacations.json
+            master-data.json

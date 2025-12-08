@@ -8,3 +8,4 @@ frontend/.next/
 frontend/dist/
 worker/node_modules/
 worker/dist/
+ .vercel/

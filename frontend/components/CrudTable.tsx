@@ -54,6 +54,7 @@ export default function CrudTable<T extends object>({
               <th
                 key={String(column.key)}
                 className="px-3 py-2 text-left font-semibold text-slate-600"
+                scope="col"
               >
                 {column.label}
               </th>
